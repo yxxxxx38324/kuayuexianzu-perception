@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Camera topic and weights, config and classes files -->
+    <!-- <arg name="image_topic"	                default="/camera/image"/> -->
+    <!-- <arg name="weights_name"	            default="yolov3.weights"/> -->
+    <!-- <arg name="config_name"	                default="yolov3.cfg"/> -->
+    <!-- <arg name="classes_name"	            default="coco.names"/> -->
+
+    <!-- Published topics -->
+    <!-- <arg name="publish_image"	            default="true"/> -->
+    <!-- <arg name="detected_objects_topic"      default="detected_objects_in_image"/> -->
+    <!-- <arg name="detections_image_topic"      default="detections_image_topic"/> -->
+
+    <!-- Detection confidence -->
+    <!-- <arg name="confidence"                  default="0.6"/> -->
+
+    <arg name="imshow_isshow"               default="true"/>
+    <arg name="yolo_type"                   default="yolox-l"/>
+    <arg name="fuse"                        default="false"/>
+    <arg name="trt"                         default="false"/>
+    <arg name="rank"                        default="0"/>
+    <arg name="ckpt_file"                   default="/home/young/kuayuexianzu_ws/src/weight/yolox_l.pth.tar"/>
+    <arg name="conf"                        default="0.3"/>
+    <arg name="nmsthre"                     default="0.65"/>
+    <arg name="image_size/width"            default="640"/>
+    <arg name="image_size/height"           default="480"/>
+
+    <!-- Node -->
+    <node name="detector_manager" pkg="perception" type="yolox_ros.py" output="screen" respawn="true">
+        <param name="imshow_isshow"               value="$(arg imshow_isshow)"/>
+        <param name="yolo_type"                   value="$(arg yolo_type)"/>
+        <param name="fuse"                        value="$(arg fuse)"/>
+        <param name="trt"                         value="$(arg trt)"/>
+        <param name="rank"                        value="$(arg rank)"/>
+        <param name="ckpt_file"                   value="$(arg ckpt_file)"/>
+        <param name="conf"                        value="$(arg conf)"/>
+        <param name="nmsthre"                     value="$(arg nmsthre)"/>
+        <param name="image_size/width"            value="$(arg image_size/width)"/>
+        <param name="image_size/height"           value="$(arg image_size/height)"/>
+    </node>
+</launch>
