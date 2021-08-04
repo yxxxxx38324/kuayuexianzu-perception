@@ -27,12 +27,14 @@ package = RosPack()
 package_path = package.get_path('perception')
 sys.path.append(package_path + '/msg')
 
-print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!package_path")
-print(sys.path)
-print("")
+# print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!package_path")
+# print(sys.path)
+# print("")
 
-from msg import BoundingBoxes
-from msg import BoundingBox
+from perception.msg import BoundingBox
+from perception.msg import Detection_result
+from perception.msg import Detection_results
+from perception.msg import Point
 
 
 class Predictor(object):
@@ -110,13 +112,15 @@ class yolox_ros():
         
         self.bridge = CvBridge()
         
-        self.pub = rospy.Publisher("yolox/bounding_boxes", BoundingBoxes, queue_size = 10)
+        self.pub = rospy.Publisher("yolox/detection_results", Detection_results, queue_size = 10)
         self.pub_image = rospy.Publisher("yolox/image_raw", Image, queue_size = 10)
-        self.sub = rospy.Subscriber("image_raw", Image, self.imageflow_callback, queue_size = 1, buff_size = 2**24)
+        self.sub = rospy.Subscriber("camera/image", Image, self.imageflow_callback, queue_size = 1, buff_size = 2**24)
         rospy.loginfo("Launched node for object detection")
 
         #spin
         rospy.spin()
+
+
 
 
     def setting_yolox_exp(self):
@@ -187,55 +191,86 @@ class yolox_ros():
         self.predictor = Predictor(model, exp, COCO_CLASSES, trt_file, decoder)
 
     def yolox2bboxes_msgs(self, bboxes, scores, cls, cls_names, img_header:Header):
-        bboxes_msg = BoundingBoxes()
-        bboxes_msg.header = img_header
+        all_det_res = Detection_results()
+        all_det_res.image_header = img_header
         i = 0
         for bbox in bboxes:
-            one_box = BoundingBox()
-            one_box.xmin = int(bbox[0])
-            one_box.ymin = int(bbox[1])
-            one_box.xmax = int(bbox[2])
-            one_box.ymax = int(bbox[3])
-            one_box.probability = float(scores[i])
-            one_box.class_id = str(cls_names[int(cls[i])])
-            bboxes_msg.bounding_boxes.append(one_box)
+            det_res = Detection_result()
+            x_min = int(bbox[0])
+            y_min = int(bbox[1])
+            x_max = int(bbox[2])
+            y_max = int(bbox[3])
+
+            det_res.bounding_box.point1.x = x_min
+            det_res.bounding_box.point1.y = y_min
+            det_res.bounding_box.point2.x = x_max
+            det_res.bounding_box.point2.y = y_min
+            det_res.bounding_box.point3.x = x_max
+            det_res.bounding_box.point3.y = y_max
+            det_res.bounding_box.point4.x = x_min
+            det_res.bounding_box.point4.y = y_max
+
+            det_res.bounding_box.probability = float(scores[i])
+            det_res.bounding_box.box_type = 0
+            class_id = str(cls_names[int(cls[i])])
+            det_res.bounding_box.class_id = class_id
+
+            det_res.longtitude = 0
+            det_res.latitude = 0
+            
+            # if (class_id == 'person'):
+            #     det_res.attribute = 0
+            # elif (class_id == 'car'):
+            #     det_res.attribute = 1
+            # else :
+            #     det_res.attribute = 2
+
+            det_res.image_cols = 0
+            det_res.image_rows = 0
+
+            # image_data = 
+
+
+            all_det_res.detection_results.append(det_res)
             i = i+1
+
+            print(all_det_res)
         
-        return bboxes_msg
+        return all_det_res
 
-    def imageflow_callback(self,msg:Image):
-        try:
-            img_rgb = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-            img_rgb = cv2.resize(img_rgb,(self.input_width,self.input_height))
+    def imageflow_callback(self, msg):
+        # try:
+        img_rgb = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+        img_rgb = cv2.resize(img_rgb,(self.input_width,self.input_height))
 
-            outputs, img_info = self.predictor.inference(img_rgb)
+        outputs, img_info = self.predictor.inference(img_rgb)
 
-            try:
-                result_img_rgb, bboxes, scores, cls, cls_names = self.predictor.visual(outputs[0], img_info)
-                bboxes = self.yolox2bboxes_msgs(bboxes, scores, cls, cls_names, msg.header)
+        print("get predictior results!!")
 
-                self.pub.publish(bboxes)
-                self.pub_image.publish(self.bridge.cv2_to_imgmsg(img_rgb,"bgr8"))
+        # try:
+        result_img_rgb, bboxes, scores, cls, cls_names = self.predictor.visual(outputs[0], img_info)
+        det_res = self.yolox2bboxes_msgs(bboxes, scores, cls, cls_names, msg.header)
 
-                if (self.imshow_isshow):
-                    cv2.imshow("YOLOX",result_img_rgb)
-                    cv2.waitKey(1)
-                
-            except:
-                if (self.imshow_isshow):
-                    cv2.imshow("YOLOX",img_rgb)
-                    cv2.waitKey(1)
+        self.pub.publish(det_res)
 
-        except:
-            pass
+        self.pub_image.publish(self.bridge.cv2_to_imgmsg(img_rgb, "bgr8"))
+
+        if (self.imshow_isshow):
+            cv2.imshow("YOLOX",result_img_rgb)
+            cv2.waitKey(1)
+        
+        # except:
+            # print('error')
+            # if (self.imshow_isshow):
+                # cv2.imshow("YOLOX",img_rgb)
+                # cv2.waitKey(1)
+
+        # except:
+        #     print("error")
 
 if __name__ == "__main__":
-    # rclpy.init(args=args)
     rospy.init_node("detector_manager_node")
 
     yolox_ros_detector = yolox_ros()
-    # rclpy.spin(yolox_ros_class)
 
-    # yolox_ros_class.destroy_node()
     cv2.destroyAllWindows()
-    # rclpy.shutdown()

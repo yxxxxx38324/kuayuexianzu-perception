@@ -63,23 +63,46 @@ int main(int argc, char **argv)
     string timestamp;
     cout << "Enter the timestamp：" << endl;
     cin>>timestamp;
+
+    double f_timestamp = atof(timestamp.c_str()) / 1000.0000;
+
+
+    map<string, string>::iterator iter;
+    iter = image_dic.begin();
+    ros::Rate loop_rate(10);
+    // while(iter != image_dic.end()) {
+        // cout << iter->first << " : " << iter->second << endl;
+        // timestamp = iter -> first;
+        // iter++;
+    // }
+
     string image_name = image_dic[timestamp];
     //csv中文件名前面多了2个空格
     image_name.erase(0,2);
+    // cout << "f_timestamp: " <<setprecision(8)<< f_timestamp << endl;
     cout<< "get image: "<< image_name <<endl;
 
     /****************通过文件名进行读取并发布ros话题****************/
     image_transport::ImageTransport it(nh);
     image_transport::Publisher pub = it.advertise("camera/image", 1);
     Mat image= imread("/home/young/Raw-001/Raw-001-Camera/" + image_name, CV_LOAD_IMAGE_COLOR);
-    sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
-    
-    ros::Rate loop_rate(10);
+    std_msgs::Header header;
+    header.stamp = ros::Time().fromSec(f_timestamp);
+    header.frame_id = "camera";
+    sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
+
+
+    // msg.header.stamp = timestamp;
+    // if (!ros::ok)
+    // {
+    //     break;
+    // }
+
 
     while (ros::ok())
     {
         pub.publish(msg);
-        ros::spinOnce();
+        // ros::spinOnce();
         loop_rate.sleep();
     }
 

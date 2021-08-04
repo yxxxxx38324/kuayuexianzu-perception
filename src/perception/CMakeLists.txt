@@ -62,7 +62,9 @@ find_package(
 add_message_files(
   FILES
     BoundingBox.msg
-    BoundingBoxes.msg
+    Detection_result.msg
+    Detection_results.msg
+    Point.msg
 )
 ## Generate services in the 'srv' folder
 # add_service_files(
