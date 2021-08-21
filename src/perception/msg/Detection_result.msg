@@ -1,7 +1,6 @@
 BoundingBox bounding_box
 
-float64 longtitude
-float64 latitude
+Position position
 
 int16 image_cols
 int16 image_rows

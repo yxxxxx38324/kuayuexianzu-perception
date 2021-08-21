@@ -88,6 +88,7 @@ int main(int argc, char **argv)
     Mat image= imread("/home/young/Raw-001/Raw-001-Camera/" + image_name, CV_LOAD_IMAGE_COLOR);
     std_msgs::Header header;
     header.stamp = ros::Time().fromSec(f_timestamp);
+    std::cout<<"img time_stamp sec is: "<<header.stamp.sec<<"  nsec is: "<<header.stamp.nsec<<std::endl;
     header.frame_id = "camera";
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
 

@@ -1,0 +1,2 @@
+float64 longtitude
+float64 latitude

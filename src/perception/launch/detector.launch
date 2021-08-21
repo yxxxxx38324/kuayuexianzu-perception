@@ -1,25 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <!-- Camera topic and weights, config and classes files -->
-    <!-- <arg name="image_topic"	                default="/camera/image"/> -->
-    <!-- <arg name="weights_name"	            default="yolov3.weights"/> -->
-    <!-- <arg name="config_name"	                default="yolov3.cfg"/> -->
-    <!-- <arg name="classes_name"	            default="coco.names"/> -->
-
-    <!-- Published topics -->
-    <!-- <arg name="publish_image"	            default="true"/> -->
-    <!-- <arg name="detected_objects_topic"      default="detected_objects_in_image"/> -->
-    <!-- <arg name="detections_image_topic"      default="detections_image_topic"/> -->
-
-    <!-- Detection confidence -->
-    <!-- <arg name="confidence"                  default="0.6"/> -->
-
     <arg name="imshow_isshow"               default="true"/>
     <arg name="yolo_type"                   default="yolox-l"/>
     <arg name="fuse"                        default="false"/>
     <arg name="trt"                         default="false"/>
     <arg name="rank"                        default="0"/>
-    <arg name="ckpt_file"                   default="/home/young/kuayuexianzu_ws/src/weight/yolox_l.pth.tar"/>
+    <arg name="ckpt_file"                   default="/home/young/下载/best_ckpt.pth"/>
     <arg name="conf"                        default="0.3"/>
     <arg name="nmsthre"                     default="0.65"/>
     <arg name="image_size/width"            default="640"/>
@@ -38,4 +24,13 @@
         <param name="image_size/width"            value="$(arg image_size/width)"/>
         <param name="image_size/height"           value="$(arg image_size/height)"/>
     </node>
+
+    <!-- <node pkg="pcap_convert" type="pcap_convert_node" name="pcap_convert_node" output="screen">
+      <param name="pcap_file" type="string" value = "/home/young/Raw-001/Raw-001-HDL32.pcap"/>
+      <param name="pub_virtual_clock" type="bool" value = "false"/>
+    </node> -->
+
+    <!-- <node pkg="perception" type="cam_data_pub" name="cam_data_pub" output="screen"></node> -->
+
+
 </launch>

@@ -15,12 +15,16 @@ from yolox.data.datasets import COCO_CLASSES
 from yolox.exp import get_exp
 from yolox.utils import fuse_model, get_model_info, postprocess, setup_logger, vis
 
+
+
+#ROS import
 import rospy
 from rospkg import RosPack
-
+import message_filters
 from std_msgs.msg import Header
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
+
 
 
 package = RosPack()
@@ -35,8 +39,8 @@ from perception.msg import BoundingBox
 from perception.msg import Detection_result
 from perception.msg import Detection_results
 from perception.msg import Point
-
-
+from perception.msg import Position
+from perception.srv import GetLocalCoord
 class Predictor(object):
     def __init__(self, model, exp, cls_names=COCO_CLASSES, trt_file=None, decoder=None):
         self.model = model
@@ -96,11 +100,11 @@ class Predictor(object):
         # preprocessing: resize
         bboxes /= ratio
 
-        cls = output[:, 6]
+        object_cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
 
-        vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
-        return vis_res, bboxes, scores, cls, self.cls_names
+        vis_res = vis(img, bboxes, scores, object_cls, cls_conf, self.cls_names)
+        return vis_res, bboxes, scores, object_cls, self.cls_names
 
 class yolox_ros():
     def __init__(self):
@@ -114,14 +118,18 @@ class yolox_ros():
         
         self.pub = rospy.Publisher("yolox/detection_results", Detection_results, queue_size = 10)
         self.pub_image = rospy.Publisher("yolox/image_raw", Image, queue_size = 10)
-        self.sub = rospy.Subscriber("camera/image", Image, self.imageflow_callback, queue_size = 1, buff_size = 2**24)
+        self.image_sub = message_filters.Subscriber("camera/image", Image)
+        self.lidar_sub = message_filters.Subscriber("velodyne_points", PointCloud2)
+        
         rospy.loginfo("Launched node for object detection")
+
+        ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.lidar_sub], 10, 0.1)
+
+        # ts = message_filters.TimeSynchronizer([image_sub, lidar_sub], 10)
+        ts.registerCallback(self.imageflow_callback)
 
         #spin
         rospy.spin()
-
-
-
 
     def setting_yolox_exp(self):
         # set environment variables for distributed training
@@ -144,15 +152,15 @@ class yolox_ros():
 
         cudnn.benchmark = True
 
-        exp = get_exp(None, yolo_type)
+        exp = get_exp("/home/young/YOLOX/exps/example/custom/yolox_kyxz.py", yolo_type)
 
         BASE_PATH = os.getcwd()
         file_name = os.path.join(BASE_PATH, "YOLOX_PATH/")
-        # os.makedirs(file_name, exist_ok=True)
+        os.makedirs(file_name, exist_ok=True)
 
-        exp.test_conf = conf # test conf
-        exp.nmsthre = nmsthre # nms threshold
-        exp.test_size = (img_size, img_size) # Resize size
+        # exp.test_conf = conf # test conf
+        # exp.nmsthre = nmsthre # nms threshold
+        # exp.test_size = (img_size, img_size) # Resize size
 
         model = exp.get_model()
         logger.info("Model Summary: {}".format(get_model_info(model, exp.test_size)))
@@ -190,6 +198,7 @@ class yolox_ros():
 
         self.predictor = Predictor(model, exp, COCO_CLASSES, trt_file, decoder)
 
+
     def yolox2bboxes_msgs(self, bboxes, scores, cls, cls_names, img_header:Header):
         all_det_res = Detection_results()
         all_det_res.image_header = img_header
@@ -215,8 +224,14 @@ class yolox_ros():
             class_id = str(cls_names[int(cls[i])])
             det_res.bounding_box.class_id = class_id
 
-            det_res.longtitude = 0
-            det_res.latitude = 0
+
+
+            # local_coord = get_local_coord(bbox) # 获取该bbox处的点云，并根据算法得到一个local_coord
+            #world_coord = local2world_coord(local_coord, ) # 通过local_coord转为world_coord
+
+
+            # det_res.longtitude = 0 
+            # det_res.latitude = 0
             
             # if (class_id == 'person'):
             #     det_res.attribute = 0
@@ -230,26 +245,54 @@ class yolox_ros():
 
             # image_data = 
 
-
             all_det_res.detection_results.append(det_res)
             i = i+1
 
-            print(all_det_res)
+        # try:
+        #     get_local_coord = rospy.ServiceProxy('get_local_coord', GetLocalCoord)
+        #     det_res.position = get_local_coord(all_det_res, pointcloud)
+        # except rospy.ServiceException as e:
+        #     print("Service call failed: %s"%e)
+
         
         return all_det_res
 
-    def imageflow_callback(self, msg):
+    def imageflow_callback(self, img_msg, lidar_msg):
         # try:
-        img_rgb = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+        img_rgb = self.bridge.imgmsg_to_cv2(img_msg,"bgr8")
         img_rgb = cv2.resize(img_rgb,(self.input_width,self.input_height))
 
         outputs, img_info = self.predictor.inference(img_rgb)
 
-        print("get predictior results!!")
-
+        print("imageflow_callback!!")
+        
+        print("outputs:\n  ")
+        print(outputs)
+        print("img_info:\n ")
+        print(img_info)
         # try:
-        result_img_rgb, bboxes, scores, cls, cls_names = self.predictor.visual(outputs[0], img_info)
-        det_res = self.yolox2bboxes_msgs(bboxes, scores, cls, cls_names, msg.header)
+        result_img_rgb, bboxes, scores, object_cls, cls_names = self.predictor.visual(outputs[0], img_info)
+        
+
+        det_res = self.yolox2bboxes_msgs(bboxes, scores, object_cls, cls_names, img_msg.header)
+
+        if(len(det_res.detection_results) > 0):
+            rospy.wait_for_service('get_local_coord')
+            try:
+                print("The num of detection results:  " + str(len(det_res.detection_results)))
+                get_local_coord = rospy.ServiceProxy('get_local_coord', GetLocalCoord)
+                resp = get_local_coord(img_msg, det_res, lidar_msg)
+                det_res =  resp.detResultWithPosition
+            except rospy.ServiceException as e:
+                print("Service call failed: %s"%e)
+        else:
+            print("No detection results")
+
+        #local_coord = get_local_coord(bbox) # 获取该bbox处的点云，并根据算法得到一个local_coord
+        #world_coord = local2world_coord(local_coord, ) # 通过local_coord转为world_coord
+
+        
+        
 
         self.pub.publish(det_res)
 
@@ -257,16 +300,8 @@ class yolox_ros():
 
         if (self.imshow_isshow):
             cv2.imshow("YOLOX",result_img_rgb)
-            cv2.waitKey(1)
-        
-        # except:
-            # print('error')
-            # if (self.imshow_isshow):
-                # cv2.imshow("YOLOX",img_rgb)
-                # cv2.waitKey(1)
-
-        # except:
-        #     print("error")
+            cv2.waitKey(0)
+    
 
 if __name__ == "__main__":
     rospy.init_node("detector_manager_node")
@@ -274,3 +309,29 @@ if __name__ == "__main__":
     yolox_ros_detector = yolox_ros()
 
     cv2.destroyAllWindows()
+
+
+
+
+
+
+    # TODO: Create Cluster-Mask Point Cloud to visualize each cluster separately
+    # Assign a color corresponding to each segmented object in scene
+    color_cluster_point_list = []
+    cluster_color = get_color_list(len(cluster_indices))
+
+    for j, indices in enumerate(cluster_indices):
+        for i, indice in enumerate(indices):
+            color_cluster_point_list.append([white_cloud[indice][0],
+                                             white_cloud[indice][1],
+                                             white_cloud[indice][2],
+                                             rgb_to_float(cluster_color[j])])
+
+    # Create new cloud containing all clusters, each with unique color
+    cluster_cloud = pcl.PointCloud_PointXYZRGB()
+    cluster_cloud.from_list(color_cluster_point_list)
+    # TODO: Convert PCL data to ROS messages
+    ros_cluster_cloud = pcl_to_ros(cluster_cloud)
+    print('publish pcl_objects_pub messages')
+    # TODO: Publish ROS messages
+    pcl_objects_pub.publish(ros_cluster_cloud)
