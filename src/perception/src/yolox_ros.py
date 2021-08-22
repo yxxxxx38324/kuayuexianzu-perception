@@ -272,7 +272,6 @@ class yolox_ros():
         print(img_info)
         # try:
         result_img_rgb, bboxes, scores, object_cls, cls_names = self.predictor.visual(outputs[0], img_info)
-        
 
         det_res = self.yolox2bboxes_msgs(bboxes, scores, object_cls, cls_names, img_msg.header)
 
@@ -287,13 +286,6 @@ class yolox_ros():
                 print("Service call failed: %s"%e)
         else:
             print("No detection results")
-
-        #local_coord = get_local_coord(bbox) # 获取该bbox处的点云，并根据算法得到一个local_coord
-        #world_coord = local2world_coord(local_coord, ) # 通过local_coord转为world_coord
-
-        
-        
-
         self.pub.publish(det_res)
 
         self.pub_image.publish(self.bridge.cv2_to_imgmsg(img_rgb, "bgr8"))
@@ -309,29 +301,3 @@ if __name__ == "__main__":
     yolox_ros_detector = yolox_ros()
 
     cv2.destroyAllWindows()
-
-
-
-
-
-
-    # TODO: Create Cluster-Mask Point Cloud to visualize each cluster separately
-    # Assign a color corresponding to each segmented object in scene
-    color_cluster_point_list = []
-    cluster_color = get_color_list(len(cluster_indices))
-
-    for j, indices in enumerate(cluster_indices):
-        for i, indice in enumerate(indices):
-            color_cluster_point_list.append([white_cloud[indice][0],
-                                             white_cloud[indice][1],
-                                             white_cloud[indice][2],
-                                             rgb_to_float(cluster_color[j])])
-
-    # Create new cloud containing all clusters, each with unique color
-    cluster_cloud = pcl.PointCloud_PointXYZRGB()
-    cluster_cloud.from_list(color_cluster_point_list)
-    # TODO: Convert PCL data to ROS messages
-    ros_cluster_cloud = pcl_to_ros(cluster_cloud)
-    print('publish pcl_objects_pub messages')
-    # TODO: Publish ROS messages
-    pcl_objects_pub.publish(ros_cluster_cloud)

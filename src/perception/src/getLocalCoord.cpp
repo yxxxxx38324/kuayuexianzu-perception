@@ -8,8 +8,6 @@ using namespace std;
 CoordinateTrans velo32CTrans; /**< Velodyne 到车体的转换关系 */
 MonoCameraTrans monoTrans;    /**< 相机坐标到车体的转换关系 */
 
-
-
 /**
   *brief:基于一个bbox中的点云进行聚类，并且返回每个类在原点云中所对应的索引。
   *author:Yang Xiaoxiao
@@ -34,7 +32,7 @@ std::vector<pcl::PointIndices> get_cluster_indices(std::vector<LidarPoint> lidar
 
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
     ec.setClusterTolerance(0.2); // 2cm
-    ec.setMinClusterSize(2);
+    ec.setMinClusterSize(3);
     ec.setMaxClusterSize(100);
     ec.setSearchMethod(tree);
     ec.setInputCloud(trans_pcd);
@@ -89,11 +87,11 @@ clusterInfo choose_cluster_indices(std::vector<pcl::PointIndices> local_indices,
             point3d.z = p.z;
         
             monoTrans.VehicleP2ImageP(point3d, imgx, imgy);
-
-            min_imgx = min_imgx < imgx ? min_imgx : imgx;
-            min_imgy = min_imgy < imgy ? min_imgy : imgy;
-            max_imgx = max_imgx > imgx ? max_imgx : imgx;
-            max_imgy = max_imgy > imgy ? max_imgy : imgy;
+            cout << "min_imgx:  "<<min_imgx<<"  "<<"imgx:  "<<imgx<<endl;
+            min_imgx = (min_imgx < imgx) ? min_imgx : imgx;
+            min_imgy = (min_imgy < imgy) ? min_imgy : imgy;
+            max_imgx = (max_imgx > imgx) ? max_imgx : imgx;
+            max_imgy = (max_imgy > imgy) ? max_imgy : imgy;
 
             obj_info.centroid_.x += p.x;
             obj_info.centroid_.y += p.y;
@@ -107,6 +105,8 @@ clusterInfo choose_cluster_indices(std::vector<pcl::PointIndices> local_indices,
             obj_info.centroid_.y /= local_indices[i].indices.size();
             obj_info.centroid_.z /= local_indices[i].indices.size();
         }
+
+        cout<<"obj_info.centroid_.x:  "<<obj_info.centroid_.x<<endl;
 
         cluster_info.depth_ = sqrt(pow(obj_info.centroid_.x, 2) + pow(obj_info.centroid_.y, 2) + pow(obj_info.centroid_.z, 2));
         cluster_info.member_num_ = local_indices[i].indices.size();
@@ -124,33 +124,58 @@ clusterInfo choose_cluster_indices(std::vector<pcl::PointIndices> local_indices,
 
         clusterSumInfo.depth_ += cluster_info.depth_;
         clusterSumInfo.member_num_ += cluster_info.member_num_;
-        clusterSumInfo.min_height_ = cluster_info.height_<clusterSumInfo.min_height_?cluster_info.height_:clusterSumInfo.min_height_;
-        clusterSumInfo.max_height_ = cluster_info.height_>clusterSumInfo.max_height_?cluster_info.height_:clusterSumInfo.max_height_;
+        clusterSumInfo.min_height_ = (cluster_info.height_<clusterSumInfo.min_height_)?cluster_info.height_:clusterSumInfo.min_height_;
+        clusterSumInfo.max_height_ = (cluster_info.height_>clusterSumInfo.max_height_)?cluster_info.height_:clusterSumInfo.max_height_;
 
         allClusterInfo.push_back(cluster_info);
         
-        //calculate bounding box
-        double length_ = obj_info.max_point_.x - obj_info.min_point_.x;
-        double width_ = obj_info.max_point_.y - obj_info.min_point_.y;
-        double height_ = obj_info.max_point_.z - obj_info.min_point_.z;
+        cout<<"cluster_info.min_imgx:  "<<cluster_info.min_imgx<<endl;
+        cout<<"cluster_info.x:  "<<cluster_info.x<<endl;
+        cout<<"cluster_info.y:  "<<cluster_info.y<<endl;
+        cout<<"cluster_info.z:  "<<cluster_info.z<<endl;
+
     }
     
-    for(auto clusterInfo: allClusterInfo){
+    for(auto& clusterInfo: allClusterInfo){
         clusterInfo.score = k1 * (1 - clusterInfo.depth_/clusterSumInfo.depth_) + 
-                            k2 * (clusterInfo.member_num_/clusterSumInfo.member_num_) +
+                            k2 * ((float)clusterInfo.member_num_/clusterSumInfo.member_num_) +
                             k3 * ((clusterInfo.height_ - clusterSumInfo.min_height_)/(clusterSumInfo.max_height_ - clusterSumInfo.min_height_));
+        cout<<"--------------------"<<endl;
+        cout<<"clusterInfo.depth_ "<< clusterInfo.depth_<<endl;
+        cout<<"clusterSumInfo.depth_ "<< clusterSumInfo.depth_<<endl;
+        
+        cout<<"clusterInfo.member_num_ "<<clusterInfo.member_num_<<endl;
+        cout<<"clusterSumInfo.member_num_ "<<clusterSumInfo.member_num_<<endl;
+
+        cout<<"clusterInfo.height_ "<<clusterInfo.height_<<endl;
+        cout<<"clusterSumInfo.min_height_ "<<clusterSumInfo.min_height_<<endl;
+        cout<<"clusterSumInfo.max_height_ "<<clusterSumInfo.max_height_<<endl;
+        
+        cout<<"clusterInfo.score"<<clusterInfo.score<<endl;
+        cout<<"k1 * (1 - clusterInfo.depth_/clusterSumInfo.depth_)  "<<k1 * (1 - clusterInfo.depth_/clusterSumInfo.depth_)<<endl;
+        cout<<"k2 * (clusterInfo.member_num_/clusterSumInfo.member_num_) "<<k2 * ((float)clusterInfo.member_num_/clusterSumInfo.member_num_)<<endl;
+        cout<<"k3 * ((clusterInfo.height_ - clusterSumInfo.min_height_)/(clusterSumInfo.max_height_ - clusterSumInfo.min_height_))"<<k3 * ((clusterInfo.height_ - clusterSumInfo.min_height_)/(clusterSumInfo.max_height_ - clusterSumInfo.min_height_))<<endl;
+    }
+
+    for(auto clusterInfo: allClusterInfo){ 
+        cout<<"!!!!!!!clusterInfo.score"<<clusterInfo.score<<endl;
     }
 
     float maxScore = 0;
     clusterInfo best_cluster;
-    for(auto p = allClusterInfo.begin(); p != allClusterInfo.end(); ++p)
+    cout<<"allClusterInfo.size():  "<<allClusterInfo.size()<<endl;
+    for(auto p: allClusterInfo)
     {
-        if(p->score > maxScore)
+        cout<<"p.x: "<<p.x<<endl;
+        cout<<"p.score"<<p.score<<endl;
+        if(p.score > maxScore)
         {
-            maxScore = p->score;
-            best_cluster = *p;
+            maxScore = p.score;
+            best_cluster = p;
+            cout<<"best_cluster.x:  "<<best_cluster.x<<endl;
         }
     }
+    // cout<<"best_cluster.x:  "<<best_cluster.x<<endl;
     return best_cluster;
 }
 
@@ -168,7 +193,6 @@ bool get_local_coord(GetLocalCoord::Request &req,
     /// 加载标定配置文件
     monoTrans.LoadCameraCalib("/home/young/Raw-001/Raw-001-Calib/Raw-001-Camera.camera");
     velo32CTrans.LoadCalib("/home/young/Raw-001/Raw-001-Calib/Raw-001-HDL32-E.txt");
-
     pcl::PointCloud<pcl::PointXYZI> cloud_pcl_xyzi;
     pcl::fromROSMsg(ros_pcl, cloud_pcl_xyzi);
 
@@ -176,7 +200,6 @@ bool get_local_coord(GetLocalCoord::Request &req,
 
     sensor_msgs::PointCloud2 ros_veh_pcd;
 
-    // showLidarTopview(cloud_pcl_xyzi);
 
     //获取落入每个bbox中的点云集合
     int bbox_num = all_det_res.detection_results.size();
@@ -245,8 +268,6 @@ bool get_local_coord(GetLocalCoord::Request &req,
     cv_bridge::CvImagePtr cv_ptr;
     cv_ptr = cv_bridge::toCvCopy(req.img, sensor_msgs::image_encodings::BGR8);
     cv::Mat img = cv_ptr->image;
-    // cv::Mat img_resize;
-    // cv::resize(img, img_resize, cv::Size(640, 480));
     cout << "The size of bboxWithPclVector: " << bboxWithPclVector.size() << endl;
     for (int i = 0; i < bboxWithPclVector.size(); i++)
     {
@@ -256,7 +277,7 @@ bool get_local_coord(GetLocalCoord::Request &req,
             float r = sqrt(pow(point.x, 2) + pow(point.y, 2) + pow(point.z, 2));
             int red = min(255, (int)(255 * abs((r - max_dis) / max_dis)));
             int green = min(255, (int)(255 * (1 - abs((r - max_dis) / max_dis))));
-            cv::circle(img, cv::Point(point.imgx, point.imgy), 2, cv::Scalar(0, green, red), -1);
+            // cv::circle(img, cv::Point(point.imgx, point.imgy), 2, cv::Scalar(0, green, red), -1);
             // cv::circle(img, cv::Point(point.imgx, point.imgy), 5, cv::Scalar(0, 255, 0), -1);
         }
         std::vector<pcl::PointIndices> cluster_indices = get_cluster_indices(bboxWithPclVector[i].lidarPoints);
@@ -278,25 +299,36 @@ bool get_local_coord(GetLocalCoord::Request &req,
         }   
         cout<<"cluster_indices[best_cluster.indice_num].indices.size():   " << cluster_indices[best_cluster.indice_num].indices.size() << endl;
         cout<<"cluster_indices.size():   " << cluster_indices.size() << endl;
-        for (auto pit = cluster_indices[best_cluster.indice_num].indices.begin(); pit != cluster_indices[best_cluster.indice_num].indices.end(); ++pit)
-        {
-            //fill new colored cluster point by point
-            pcl::PointXYZ p;
-            p.x = trans_pcd->points[*pit].x;
-            p.y = trans_pcd->points[*pit].y;
-            p.z = trans_pcd->points[*pit].z;
-
-            double imgx, imgy;
-            Point3d point3d;
-            point3d.x = p.x;
-            point3d.y = p.y;
-            point3d.z = p.z;
         
-            monoTrans.VehicleP2ImageP(point3d, imgx, imgy);
+        for(int i=0; i<cluster_indices.size();++i){
+            for (auto pit = cluster_indices[i].indices.begin(); pit != cluster_indices[i].indices.end(); ++pit)
+            // for (auto pit = cluster_indices[best_cluster.indice_num].indices.begin(); pit != cluster_indices[best_cluster.indice_num].indices.end(); ++pit)
+            {
+                //fill new colored cluster point by point
+                pcl::PointXYZ p;
+                p.x = trans_pcd->points[*pit].x;
+                p.y = trans_pcd->points[*pit].y;
+                p.z = trans_pcd->points[*pit].z;
 
-            cv::circle(img, cv::Point(imgx, imgy), 3, cv::Scalar(255, 255, 255), -1);
+                double imgx, imgy;
+                Point3d point3d;
+                point3d.x = p.x;
+                point3d.y = p.y;
+                point3d.z = p.z;
+            
+                monoTrans.VehicleP2ImageP(point3d, imgx, imgy);
+
+                if(i == best_cluster.indice_num){
+                    cv::circle(img, cv::Point(imgx, imgy), 3, cv::Scalar(0, 255, 255), -1);
+                }
+                else{
+                    cv::circle(img, cv::Point(imgx, imgy), 3, cv::Scalar(255, 255, 255), -1);
+                }
+
+            }
+            cv::imshow("img", img);
+            cv::waitKey();
         }
-
         cout<<"best_cluster.min_imgx:  "<<best_cluster.min_imgx<<endl;
         cout<<"best_cluster.min_imgy:  "<<best_cluster.min_imgy<<endl;
         cout<<"best_cluster.max_imgx:  "<<best_cluster.max_imgx<<endl;
@@ -308,6 +340,8 @@ bool get_local_coord(GetLocalCoord::Request &req,
         all_det_res.detection_results[i].position.longtitude = best_cluster.y;
     }
 
+
+    // 画出画面中的所有点云，并且由近到远，从红色渐变为绿色。
     // for (auto point : lidarPointVector)
     // {
     //     float r = sqrt(pow(point.x, 2) + pow(point.y, 2) + pow(point.z, 2));
@@ -316,7 +350,6 @@ bool get_local_coord(GetLocalCoord::Request &req,
     //     cv::circle(img, cv::Point(point.imgx, point.imgy), 2, cv::Scalar(0, green, red), -1);
     // }
 
-    // cout<<"4444444"<<endl;
     cv::imshow("img", img);
     cv::waitKey();
     res.detResultWithPosition = all_det_res;
