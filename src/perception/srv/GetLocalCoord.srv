@@ -1,5 +1,6 @@
 sensor_msgs/Image img
 Detection_results det_ress
 sensor_msgs/PointCloud2 pcl
+cyber_msgs/LocalizationEstimate location
 ---
 Detection_results detResultWithPosition

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os, sys
 import time
 from loguru import logger
@@ -41,6 +40,9 @@ from perception.msg import Detection_results
 from perception.msg import Point
 from perception.msg import Position
 from perception.srv import GetLocalCoord
+
+from cyber_msgs.msg import LocalizationEstimate
+
 class Predictor(object):
     def __init__(self, model, exp, cls_names=COCO_CLASSES, trt_file=None, decoder=None):
         self.model = model
@@ -115,15 +117,17 @@ class yolox_ros():
             cv2.namedWindow("YOLOX")
         
         self.bridge = CvBridge()
+        self.attributeDic = {"person":0, "car":1, "tyre":2, "drum":3}
         
         self.pub = rospy.Publisher("yolox/detection_results", Detection_results, queue_size = 10)
         self.pub_image = rospy.Publisher("yolox/image_raw", Image, queue_size = 10)
         self.image_sub = message_filters.Subscriber("camera/image", Image)
         self.lidar_sub = message_filters.Subscriber("velodyne_points", PointCloud2)
+        self.location_sub = message_filters.Subscriber("localization/estimation", LocalizationEstimate)
         
         rospy.loginfo("Launched node for object detection")
 
-        ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.lidar_sub], 10, 0.1)
+        ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.lidar_sub, self.location_sub], 10, 0.1)
 
         # ts = message_filters.TimeSynchronizer([image_sub, lidar_sub], 10)
         ts.registerCallback(self.imageflow_callback)
@@ -143,10 +147,10 @@ class yolox_ros():
         rank = rospy.get_param('~rank', "0")
         ckpt_file = rospy.get_param('~ckpt_file')
         conf = rospy.get_param('~conf', "0.3")
-        nmsthre = rospy.get_param('~nmsthre', "0.65")
+        nmsthre  = rospy.get_param('~nmsthre', "0.65")
         img_size = rospy.get_param('~img_size', "640")
-        self.input_width = rospy.get_param('~image_size/width', "640")
-        self.input_height = rospy.get_param('~image_size/height', "480")
+        self.input_width = rospy.get_param('~image_size/width', "1024")
+        self.input_height = rospy.get_param('~image_size/height', "768")
 
         # ==============================================================
 
@@ -199,7 +203,7 @@ class yolox_ros():
         self.predictor = Predictor(model, exp, COCO_CLASSES, trt_file, decoder)
 
 
-    def yolox2bboxes_msgs(self, bboxes, scores, cls, cls_names, img_header:Header):
+    def yolox2bboxes_msgs(self, bboxes, img_rgb, scores, cls, cls_names, img_header:Header):
         all_det_res = Detection_results()
         all_det_res.image_header = img_header
         i = 0
@@ -224,40 +228,44 @@ class yolox_ros():
             class_id = str(cls_names[int(cls[i])])
             det_res.bounding_box.class_id = class_id
 
+            det_res.attribute = object_cls
 
+            height = y_max - y_min
+            width = x_max - x_min 
 
-            # local_coord = get_local_coord(bbox) # 获取该bbox处的点云，并根据算法得到一个local_coord
-            #world_coord = local2world_coord(local_coord, ) # 通过local_coord转为world_coord
+            targetRegion = img_rgb[x_min:x_max, y_min:y_max]
 
+            max_length = max(height, width)
+            min_length = min(height, width)
+            ratio = max_length/min_length
 
-            # det_res.longtitude = 0 
-            # det_res.latitude = 0
+            if(ratio <= 4):
+                processed_height = height * (200 / max_length) 
+                processed_width = width * (200 / max_length) 
+            elif(ratio > 4 and (height > width)):
+                processed_height = 200
+                processed_width = 50
+            else:
+                processed_height = 50
+                processed_width = 200
             
-            # if (class_id == 'person'):
-            #     det_res.attribute = 0
-            # elif (class_id == 'car'):
-            #     det_res.attribute = 1
-            # else :
-            #     det_res.attribute = 2
+            resizedTargetRegion = cv.resize(targetRegion, (processed_width, processed_height))
 
-            det_res.image_cols = 0
-            det_res.image_rows = 0
+            targetRegionArray = resizedTargetRegion.reshape((height*width*3, 1))  
 
-            # image_data = 
+            det_res.image_header = img_header
+
+            det_res.image_cols = processed_width
+            det_res.image_rows = processed_height
+
+            det_res.img_data = targetRegionArray
 
             all_det_res.detection_results.append(det_res)
             i = i+1
 
-        # try:
-        #     get_local_coord = rospy.ServiceProxy('get_local_coord', GetLocalCoord)
-        #     det_res.position = get_local_coord(all_det_res, pointcloud)
-        # except rospy.ServiceException as e:
-        #     print("Service call failed: %s"%e)
-
-        
         return all_det_res
 
-    def imageflow_callback(self, img_msg, lidar_msg):
+    def imageflow_callback(self, img_msg, lidar_msg, location_msg):
         # try:
         img_rgb = self.bridge.imgmsg_to_cv2(img_msg,"bgr8")
         img_rgb = cv2.resize(img_rgb,(self.input_width,self.input_height))
@@ -273,7 +281,7 @@ class yolox_ros():
         # try:
         result_img_rgb, bboxes, scores, object_cls, cls_names = self.predictor.visual(outputs[0], img_info)
 
-        det_res = self.yolox2bboxes_msgs(bboxes, scores, object_cls, cls_names, img_msg.header)
+        det_res = self.yolox2bboxes_msgs(bboxes, img_rgb, scores, object_cls, cls_names, img_msg.header)
 
         if(len(det_res.detection_results) > 0):
             rospy.wait_for_service('get_local_coord')

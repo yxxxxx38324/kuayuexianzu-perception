@@ -2,6 +2,7 @@
 #include "getLocalCoord.h"
 #include <cv_bridge/cv_bridge.h>
 #include "math.h"
+#include "CoorConv.hpp"
 using namespace perception;
 using namespace std;
 /// 第一个例子以转换一个32线Velodyne的原始激光点的三维坐标 到 图像二维坐标为例
@@ -189,6 +190,7 @@ bool get_local_coord(GetLocalCoord::Request &req,
 {
     Detection_results all_det_res = req.det_ress;
     sensor_msgs::PointCloud2 ros_pcl = req.pcl;
+    cyber_msgs::LocalizationEstimate location = req.location;
 
     /// 加载标定配置文件
     monoTrans.LoadCameraCalib("/home/young/Raw-001/Raw-001-Calib/Raw-001-Camera.camera");
@@ -241,10 +243,10 @@ bool get_local_coord(GetLocalCoord::Request &req,
         {
             Detection_result det_res = all_det_res.detection_results[i];
             bboxWithPclVector[i].boxID = i;
-            bboxWithPclVector[i].roi.x = float(det_res.bounding_box.point1.x * (768.0 / 480.0));
-            bboxWithPclVector[i].roi.y = float(det_res.bounding_box.point1.y * (1024.0 / 640.0));
-            bboxWithPclVector[i].roi.width = float((det_res.bounding_box.point2.x - det_res.bounding_box.point1.x) * (1024.0 / 640.0));
-            bboxWithPclVector[i].roi.height = float((det_res.bounding_box.point4.y - det_res.bounding_box.point1.y) * (768.0 / 480.0));
+            bboxWithPclVector[i].roi.x = float(det_res.bounding_box.point1.x);// * (768.0 / 480.0));
+            bboxWithPclVector[i].roi.y = float(det_res.bounding_box.point1.y);// * (1024.0 / 640.0));
+            bboxWithPclVector[i].roi.width = float((det_res.bounding_box.point2.x - det_res.bounding_box.point1.x));// * (1024.0 / 640.0));
+            bboxWithPclVector[i].roi.height = float((det_res.bounding_box.point4.y - det_res.bounding_box.point1.y));// * (768.0 / 480.0));
 
             // check wether point is within current bounding box
             if (bboxWithPclVector[i].roi.contains(pt))
@@ -336,8 +338,45 @@ bool get_local_coord(GetLocalCoord::Request &req,
 
         cv::rectangle(img, cv::Point(best_cluster.min_imgx, best_cluster.min_imgy), cv::Point(best_cluster.max_imgx, best_cluster.max_imgy), cv::Scalar(0,0,255),3,1,0);
 
-        all_det_res.detection_results[i].position.latitude = best_cluster.x;
-        all_det_res.detection_results[i].position.longtitude = best_cluster.y;
+        //求得在东北天坐标系下，以车辆后轴中心为原点的坐标
+        Eigen::Quaterniond Q1(location.pose.orientation.x, location.pose.orientation.y, 
+                              location.pose.orientation.z,location.pose.orientation.w);
+        //车辆后轴中心的位置坐标，以t=0时为原点
+        Eigen::Vector3d t1(location.pose.position.x, location.pose.position.y, location.pose.position.z);
+        //目标物体的坐标，以车辆后轴中心为原点
+        Eigen::Vector3d p1(best_cluster.x, best_cluster.y, best_cluster.z);
+        //得到以以t=0时为原点，东北天为参考系的坐标。
+        Eigen::Vector3d pw;
+
+        //定义变换矩阵T_1w
+        Eigen::Isometry3d T_1w = Eigen::Isometry3d::Identity();
+
+        Q1.normalize();
+        T_1w.rotate(Q1);
+        // T_1w.pretranslate(t1);
+
+        //基于车辆坐标系的目标位置坐标，xyz
+        pw = T_1w.inverse() * p1;
+
+        float carPositonLatitude = 39.7875546;
+        float carPositonLongitude = 116.0005646;
+
+        WGS84Corr t;
+        t.lat = 39.7875546;  // location.latitude
+        t.log = 116.0005646;// location.longitude
+        //车辆的绝对UTM位置
+        UTMCoor utmPosition_car;
+        UTMCoor utmPosition_obj;
+        //北京属于分区50
+        LatLonToUTMXY(DegToRad(t.lat), DegToRad(t.log), 50, utmPosition_car);   
+        
+        utmPosition_obj.x = utmPosition_car.x + pw.x();
+        utmPosition_obj.y = utmPosition_car.y + pw.y();
+
+        UTMXYToLatLon(utmPosition_obj.x, utmPosition_obj.y, 50, false, t);
+
+        all_det_res.detection_results[i].position.latitude = t.lat;
+        all_det_res.detection_results[i].position.longtitude = t.log;
     }
 
 

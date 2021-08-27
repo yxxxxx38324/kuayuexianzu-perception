@@ -88,6 +88,7 @@ generate_messages(
   geometry_msgs
   sensor_msgs
   std_msgs
+  cyber_msgs
 )
 
 ################################################
@@ -164,8 +165,8 @@ add_executable(tranPCd src/transPcd.cpp src/CoordinateTrans.cpp src/MonoCameraTr
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(readdata ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-# add_dependencies(getLocalCoord ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(readdata ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(getLocalCoord ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 # add_dependencies(readdata perception_generate_messages_cpp)
 ## Specify libraries to link a library or executable target against

@@ -3,6 +3,7 @@
 #include "perception/Position.h"
 #include "perception/Detection_result.h"
 #include "perception/Detection_results.h"
+#include "cyber_msgs/LocalizationEstimate.h"
 #include <pcl/point_cloud.h>
 #include "CoordinateTrans.h"
 #include "MonoCameraTrans.h"
@@ -36,6 +37,8 @@
 #include <rosgraph_msgs/Clock.h>
 #include "std_msgs/String.h"
 #include "Eigen/Dense"
+#include "Eigen/Core"
+#include "Eigen/Geometry"
 const float k1 = 0.3;
 const float k2 = 0.4;
 const float k3 = 0.3;

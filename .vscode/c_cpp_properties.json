@@ -11,7 +11,8 @@
         "/home/young/kuayuexianzu_ws/src/pcap_convert/include/**",
         "/home/young/kuayuexianzu_ws/src/perception/include/perception/",
         "/usr/include/**",
-        "/home/young/kuayuexianzu_ws/devel/include/perception/"
+        "/home/young/kuayuexianzu_ws/devel/include/perception/",
+        "/home/young/kuayuexianzu_ws/devel/include/cyber_msgs/"
       ],
       "name": "ROS"
     }
