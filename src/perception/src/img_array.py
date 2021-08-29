@@ -8,8 +8,8 @@ def access_pixels(image):
     channels = image.shape[2]
     print("width: %s  height: %s  channels: %s"%(width, height, channels))
 
-    img_data = image.reshape((height*width*3, 1))     
-    cv.imshow("ROI",ROI)
+    img_data = image.reshape((height*width*3))     
+    cv.imshow("ROI",img_data)
     cv.waitKey(0)
     cv.destroyAllWindows()
 

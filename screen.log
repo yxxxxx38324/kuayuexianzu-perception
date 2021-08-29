@@ -1,0 +1,19 @@
+Script started on 2021-08-29 10:51:52+0800
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws[00m# source devel/setup.bash [Kls
+[0m[01;34mbuild[0m  [01;34mdevel[0m  screen.log  [01;34msrc[0m
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws[00m# lssource devel/setup.bash [5Pcd kuayuexianzu_ws/onda activate pytorchd[Ksource install/setup.bash [6Pcd catkin_workspace/source install/setup.bash cd[Konda activate pytorch[3Pd kuayuexianzu_ws/source devel/setup.bash ls[K[Krundet
+[31mRLException: [detector.launch] is neither a launch file in package [perception] nor is [perception] a launch file name[0m
+[31mThe traceback for the exception was written to the log file[0m
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws[00m# roslaunch perce[K[K[K[K[K[K[K[K[K[K[K[K[K[K[Kcd src/
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src[00m# cd lan[Ku[K[K[K[K[K[Kls
+[0m[01;36mCMakeLists.txt[0m  [01;34mcyber_msgs[0m  [01;34mpcap_convert[0m  [01;34mperception[0m  [01;34mweight[0m
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src[00m# cd perception/
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src/perception[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src/perception[00m# ls
+CMakeLists.txt  [0m[01;34minclude[0m  [01;34mlaunch[0m  [01;34mmsg[0m  package.xml  [01;34msrc[0m  [01;34msrv[0m
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src/perception[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src/perception[00m# cd launch/
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src/perception/launch[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src/perception/launch[00m# ls
+[0m[01;32mdetector.launch[0m
+(base) ]0;root@youngLaptop: ~/kuayuexianzu_ws/src/perception/launch[01;32mroot@youngLaptop[00m:[01;34m~/kuayuexianzu_ws/src/perception/launch[00m# roslaunch de[K[K[K[K[K[K[K[K[K[K[K[Kexit
+exit
+
+Script done on 2021-08-29 10:53:19+0800

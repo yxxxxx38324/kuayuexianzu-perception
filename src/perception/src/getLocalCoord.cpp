@@ -191,17 +191,23 @@ bool get_local_coord(GetLocalCoord::Request &req,
     Detection_results all_det_res = req.det_ress;
     sensor_msgs::PointCloud2 ros_pcl = req.pcl;
     cyber_msgs::LocalizationEstimate location = req.location;
-
+    cout<<"222"<<endl;
     /// 加载标定配置文件
     monoTrans.LoadCameraCalib("/home/young/Raw-001/Raw-001-Calib/Raw-001-Camera.camera");
     velo32CTrans.LoadCalib("/home/young/Raw-001/Raw-001-Calib/Raw-001-HDL32-E.txt");
     pcl::PointCloud<pcl::PointXYZI> cloud_pcl_xyzi;
     pcl::fromROSMsg(ros_pcl, cloud_pcl_xyzi);
-
+    cout<<"111"<<endl;
+    sleep(3);
     pcl::PointCloud<pcl::PointXYZI> veh_pcd;
 
     sensor_msgs::PointCloud2 ros_veh_pcd;
-
+    
+    cv_bridge::CvImagePtr cv_ptr;
+    cv_ptr = cv_bridge::toCvCopy(req.img, sensor_msgs::image_encodings::BGR8);
+    cv::Mat img = cv_ptr->image;
+    cv::imshow("img11", img);
+    cv::waitKey();
 
     //获取落入每个bbox中的点云集合
     int bbox_num = all_det_res.detection_results.size();
@@ -257,6 +263,8 @@ bool get_local_coord(GetLocalCoord::Request &req,
         lidarPointVector.push_back(lidarPoint);
     } // eof loop over all points
 
+    cv::imshow("img22", img);
+    cv::waitKey();
     float max_dis = 0;
     for (auto point : lidarPointVector)
     {
@@ -266,10 +274,9 @@ bool get_local_coord(GetLocalCoord::Request &req,
             max_dis = r;
         }
     }
+    cv::imshow("img33", img);
+    cv::waitKey();
 
-    cv_bridge::CvImagePtr cv_ptr;
-    cv_ptr = cv_bridge::toCvCopy(req.img, sensor_msgs::image_encodings::BGR8);
-    cv::Mat img = cv_ptr->image;
     cout << "The size of bboxWithPclVector: " << bboxWithPclVector.size() << endl;
     for (int i = 0; i < bboxWithPclVector.size(); i++)
     {

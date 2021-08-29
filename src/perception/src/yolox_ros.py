@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-import os, sys
+import os, sys, time
 import time
 from loguru import logger
 
 import cv2
 from numpy import empty
-
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 
@@ -228,20 +228,36 @@ class yolox_ros():
             class_id = str(cls_names[int(cls[i])])
             det_res.bounding_box.class_id = class_id
 
-            det_res.attribute = object_cls
+            det_res.attribute = int(cls[i])
 
             height = y_max - y_min
             width = x_max - x_min 
 
-            targetRegion = img_rgb[x_min:x_max, y_min:y_max]
+            print("img.shape:  ")
+            print(img_rgb.shape)
+            print("x_min:  ")
+            print(x_min)
+            print("x_max:  ")
+            print(x_max)
+            print("y_min:  ")
+            print(y_min)
+            print("y_max:  ")
+            print(y_max )
+            
+            cv2.rectangle(img_rgb, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
+            targetRegion = img_rgb[int(y_min) : int(y_max), int(x_min) : int(x_max)]
+            print("targetRegion.shape:  ")
+            print(targetRegion.shape)
+
 
             max_length = max(height, width)
             min_length = min(height, width)
             ratio = max_length/min_length
 
             if(ratio <= 4):
-                processed_height = height * (200 / max_length) 
-                processed_width = width * (200 / max_length) 
+                processed_height = int( height * ( 200 / max_length ) )
+                processed_width = int( width * ( 200 / max_length ) )
             elif(ratio > 4 and (height > width)):
                 processed_height = 200
                 processed_width = 50
@@ -249,16 +265,22 @@ class yolox_ros():
                 processed_height = 50
                 processed_width = 200
             
-            resizedTargetRegion = cv.resize(targetRegion, (processed_width, processed_height))
+            print("processed_width: " + str(processed_width))
+            print("processed_height:  " + str(processed_height))
 
-            targetRegionArray = resizedTargetRegion.reshape((height*width*3, 1))  
+            resizedTargetRegion = cv2.resize(targetRegion, (processed_width, processed_height))
 
+            targetRegionArray = resizedTargetRegion.reshape((processed_height * processed_width*3))  
+            targetRegionArray = targetRegionArray.astype(np.int8)
+            targetRegionList = targetRegionArray.tolist()
+            # print("targetRegionList:  ")
+            # print(targetRegionList)
             det_res.image_header = img_header
 
             det_res.image_cols = processed_width
             det_res.image_rows = processed_height
-
-            det_res.img_data = targetRegionArray
+            
+            det_res.image_data = targetRegionArray.tolist()
 
             all_det_res.detection_results.append(det_res)
             i = i+1
@@ -268,7 +290,9 @@ class yolox_ros():
     def imageflow_callback(self, img_msg, lidar_msg, location_msg):
         # try:
         img_rgb = self.bridge.imgmsg_to_cv2(img_msg,"bgr8")
+
         img_rgb = cv2.resize(img_rgb,(self.input_width,self.input_height))
+        img_ori = img_rgb.copy()
 
         outputs, img_info = self.predictor.inference(img_rgb)
 
@@ -281,14 +305,20 @@ class yolox_ros():
         # try:
         result_img_rgb, bboxes, scores, object_cls, cls_names = self.predictor.visual(outputs[0], img_info)
 
-        det_res = self.yolox2bboxes_msgs(bboxes, img_rgb, scores, object_cls, cls_names, img_msg.header)
+        # cv2.imshow("img_rgb_origin2q1e",img_rgb )
+        # cv2.waitKey()
+        
+        det_res = self.yolox2bboxes_msgs(bboxes, img_ori, scores, object_cls, cls_names, img_msg.header)
 
         if(len(det_res.detection_results) > 0):
             rospy.wait_for_service('get_local_coord')
             try:
                 print("The num of detection results:  " + str(len(det_res.detection_results)))
+                time.sleep(2)
                 get_local_coord = rospy.ServiceProxy('get_local_coord', GetLocalCoord)
-                resp = get_local_coord(img_msg, det_res, lidar_msg)
+                print("get get_local_coord server!")
+                time.sleep(2)
+                resp = get_local_coord(img_msg, det_res, lidar_msg, location_msg)
                 det_res =  resp.detResultWithPosition
             except rospy.ServiceException as e:
                 print("Service call failed: %s"%e)
@@ -298,9 +328,9 @@ class yolox_ros():
 
         self.pub_image.publish(self.bridge.cv2_to_imgmsg(img_rgb, "bgr8"))
 
-        if (self.imshow_isshow):
-            cv2.imshow("YOLOX",result_img_rgb)
-            cv2.waitKey(0)
+        # if (self.imshow_isshow):
+        #     cv2.imshow("YOLOX",result_img_rgb)
+        #     cv2.waitKey(0)
     
 
 if __name__ == "__main__":

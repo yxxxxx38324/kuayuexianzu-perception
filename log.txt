@@ -1,0 +1,45 @@
+/home/young/YOLOX/exps/example/custom/yolox_kyxz.py
+current_exp:  yolox_kyxz
+[INFO] [1630209490.244567]: Launched node for object detection
+... logging to /home/young/.ros/log/4821e236-087d-11ec-8cdd-7c67a2e59b65/roslaunch-youngLaptop-10464.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+]2;/home/young/kuayuexianzu_ws/src/perception/launch/detector.launch
+[1mstarted roslaunch server http://youngLaptop:38953/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /detector_manager/ckpt_file: <...>
+ * /detector_manager/conf: 0.3
+ * /detector_manager/fuse: False
+ * /detector_manager/image_size/height: 768
+ * /detector_manager/image_size/width: 1024
+ * /detector_manager/imshow_isshow: True
+ * /detector_manager/nmsthre: 0.65
+ * /detector_manager/rank: 0
+ * /detector_manager/trt: False
+ * /detector_manager/yolo_type: yolox-l
+ * /rosdistro: melodic
+ * /rosversion: 1.14.11
+
+NODES
+  /
+    detector_manager (perception/yolox_ros.py)
+
+auto-starting new master
+[1mprocess[master]: started with pid [10474][0m
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/young/kuayuexianzu_ws/src/perception/launch/detector.launch http://localhost:11311
+[1msetting /run_id to 4821e236-087d-11ec-8cdd-7c67a2e59b65[0m
+[1mprocess[rosout-1]: started with pid [10485][0m
+started core service [/rosout]
+[1mprocess[detector_manager-2]: started with pid [10489][0m
+[detector_manager-2] killing on exit
+[rosout-1] killing on exit
+[master] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m
